@@ -1,0 +1,37 @@
+class ApiError extends Error {
+  constructor(statusCode, message = "Something went wrong") {
+    super(message);
+    this.statusCode = statusCode;
+    this.success = false;
+    this.isOperational = true; // Distinguishes operational errors from system bugs
+
+    Error.captureStackTrace(this, this.constructor);
+  }
+
+  // Pre-configured helper methods for common HTTP codes:
+  static badRequest(message = "Bad request") {
+    return new ApiError(400, message);
+  }
+
+  static unauthorized(message = "Unauthorized") {
+    return new ApiError(401, message);
+  }
+
+  static forbidden(message = "Forbidden") {
+    return new ApiError(403, message);
+  }
+
+  static notFound(message = "Resource not found") {
+    return new ApiError(404, message);
+  }
+
+  static conflict(message = "Conflict occurred") {
+    return new ApiError(409, message);
+  }
+
+  static internal(message = "Internal server error") {
+    return new ApiError(500, message);
+  }
+}
+
+export default ApiError;                                                                                                                                                                                                                
