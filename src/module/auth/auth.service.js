@@ -28,7 +28,8 @@ const register=async({name,email,password,role})=>{
   try {
     await sendVerificationEmail(email, rawToken);
   } catch (err) {
-    console.error("Failed to send verification email:", err.message);
+    console.error(err);
+    // console.error("Failed to send verification email:", err.message);
   }
 
 

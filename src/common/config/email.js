@@ -1,5 +1,12 @@
 import nodemailer from "nodemailer";
+import dotenv from "dotenv";
 
+dotenv.config();
+
+console.log(
+  process.env.SMTP_HOST,
+  process.env.SMTP_PORT
+);
 // 1. Create SMTP transporter connected to Mailtrap
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -9,7 +16,9 @@ const transporter = nodemailer.createTransport({
     pass: process.env.SMTP_PASS,
   },
 });
-
+transporter.verify()
+  .then(() => console.log("SMTP Connected"))
+  .catch(err => console.error(err));
 // 2. Generic helper to send any HTML email
 const sendEmail = async (to, subject, html) => {
   await transporter.sendMail({
@@ -22,6 +31,7 @@ const sendEmail = async (to, subject, html) => {
 
 // 3. Verification email template
 const sendVerificationEmail = async (email, token) => {
+    
   // Points to our API endpoint (or frontend route)
   const url = `${process.env.CLIENT_URL}/api/auth/verify-email/${token}`;
 
