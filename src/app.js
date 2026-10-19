@@ -1,7 +1,7 @@
 import express from "express";
 import ApiResponse from "./common/utils/api-response.js";
 import ApiError from "./common/utils/api-error.js";
-
+import authRoutes from "./module/auth/auth.routes.js"; 
 
 const app=express();
 //global route
@@ -14,7 +14,7 @@ app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.get("/health", (req, res) => {
  return  ApiResponse.ok(res, "Server is healthy!", { uptime: process.uptime() });
 });
-
+app.use("/api/auth", authRoutes);
 
 // 404 handler for undefined routes
 app.use((req, res, next) => {
