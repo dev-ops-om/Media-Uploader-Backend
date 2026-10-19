@@ -10,7 +10,7 @@ class BaseDto{
 
         if(error){
             const errors=error.details.map((detail)=> detail.message);
-            return {error,value:null};
+            return {errors,value:null};
         }
         return {errors:null,value};
     }

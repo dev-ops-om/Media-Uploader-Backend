@@ -15,4 +15,15 @@ const register = async (req, res, next) => {
     next(error); // Passes any ApiError to our global error handling middleware
   }
 };
-export { register };
+
+const verifyEmail = async (req, res, next) => {
+  try {
+    // Read token from URL parameter: /verify-email/:token
+    const { token } = req.params;
+    await authService.verifyEmail(token);
+    return ApiResponse.ok(res, "Email verified successfully! You can now log in.");
+  } catch (error) {
+    next(error);
+  }
+};
+export { register,verifyEmail };
