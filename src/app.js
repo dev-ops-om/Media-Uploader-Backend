@@ -2,7 +2,7 @@ import express from "express";
 import ApiResponse from "./common/utils/api-response.js";
 import ApiError from "./common/utils/api-error.js";
 import authRoutes from "./module/auth/auth.routes.js"; 
-
+import cookieParser from "cookie-parser";
 const app=express();
 //global route
 // app.use(express.json())
@@ -10,6 +10,8 @@ const app=express();
 
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
+app.use(cookieParser()); 
+
 // Basic Health Check Route
 app.get("/health", (req, res) => {
  return  ApiResponse.ok(res, "Server is healthy!", { uptime: process.uptime() });

@@ -26,4 +26,26 @@ const verifyEmail = async (req, res, next) => {
     next(error);
   }
 };
-export { register,verifyEmail };
+
+const login = async (req, res, next) => {
+  try {
+    const { user, accessToken, refreshToken } = await authService.login(req.body);
+    // Set Refresh Token in a secure HTTP-Only Cookie
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true, // Prevents browser JavaScript from reading the cookie (anti-XSS)
+      secure: process.env.NODE_ENV === "production", // HTTPS only in production
+      sameSite: "strict", // Protects against Cross-Site Request Forgery (CSRF)
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+    });
+    // Send access token and user info in response body
+    return ApiResponse.ok(res, "Login successful", { user, accessToken });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+
+
+
+export { register,verifyEmail ,login};

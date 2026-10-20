@@ -1,4 +1,19 @@
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
+
+// 1. Generate short-lived Access Token (15m)
+const generateAccessToken = (payload) => {
+  return jwt.sign(payload, process.env.JWT_ACCESS_SECRET, {
+    expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "15m",
+  });
+};
+
+// 2. Generate long-lived Refresh Token (7d)
+const generateRefreshToken = (payload) => {
+  return jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
+    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
+  });
+};
 
 const hashToken = (token) => {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -13,4 +28,4 @@ const generateResetToken = () => {
   return { rawToken, hashedToken };
 };
 
-export {generateResetToken,hashToken};
+export {generateResetToken,hashToken,generateAccessToken,generateRefreshToken};
