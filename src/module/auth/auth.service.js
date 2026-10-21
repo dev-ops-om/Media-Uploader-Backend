@@ -103,5 +103,11 @@ const login = async ({ email, password }) => {
   return { user: userObj, accessToken, refreshToken };
 };
 
-
-export { register ,verifyEmail,login};
+const getMe = async (userId) => {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw ApiError.notFound("User not found");
+  }
+  return user;
+};
+export { register, verifyEmail, login, getMe };

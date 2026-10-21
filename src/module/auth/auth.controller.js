@@ -46,6 +46,14 @@ const login = async (req, res, next) => {
 
 
 
+const getMe = async (req, res, next) => {
+  try {
+    // req.user was attached by our authenticate middleware!
+    const user = await authService.getMe(req.user.id);
+    return ApiResponse.ok(res, "User profile retrieved successfully", user);
+  } catch (error) {
+    next(error);
+  }
+};
 
-
-export { register,verifyEmail ,login};
+export { register,verifyEmail ,login,getMe};

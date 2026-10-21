@@ -3,6 +3,7 @@ import ApiResponse from "./common/utils/api-response.js";
 import ApiError from "./common/utils/api-error.js";
 import authRoutes from "./module/auth/auth.routes.js"; 
 import cookieParser from "cookie-parser";
+import { authenticate } from "./module/auth/auth.middleware.js"
 const app=express();
 //global route
 // app.use(express.json())
@@ -33,5 +34,6 @@ app.use((err, req, res, next) => {
     ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 });
+
 
 export default app;

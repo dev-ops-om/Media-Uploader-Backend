@@ -8,6 +8,11 @@ const generateAccessToken = (payload) => {
   });
 };
 
+const verifyAccessToken = (token) => {
+  return jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+};
+
+
 // 2. Generate long-lived Refresh Token (7d)
 const generateRefreshToken = (payload) => {
   return jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
@@ -28,4 +33,4 @@ const generateResetToken = () => {
   return { rawToken, hashedToken };
 };
 
-export {generateResetToken,hashToken,generateAccessToken,generateRefreshToken};
+export {generateResetToken,hashToken,generateAccessToken,generateRefreshToken,verifyAccessToken};
