@@ -56,4 +56,31 @@ const getMe = async (req, res, next) => {
   }
 };
 
-export { register,verifyEmail ,login,getMe};
+const refreshToken = async (req, res, next) => {
+  try {
+    // Read the httpOnly cookie parsed by cookie-parser
+    const token = req.cookies?.refreshToken;
+    const { accessToken } = await authService.refresh(token);
+    return ApiResponse.ok(res, "Access token refreshed successfully", { accessToken });
+  } catch (error) {
+    next(error);
+  }
+};
+const logout = async (req, res, next) => {
+  try {
+    // req.user was attached by our authenticate middleware
+    await authService.logout(req.user.id);
+    // Clear the cookie from the user's browser
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
+    return ApiResponse.ok(res, "Logged out successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+export { register,verifyEmail ,login,getMe,refreshToken,logout};

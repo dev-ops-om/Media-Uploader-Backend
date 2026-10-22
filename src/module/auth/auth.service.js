@@ -1,6 +1,6 @@
 import User from "./auth.model.js"
 import ApiError from "../../common/utils/api-error.js"
-import { generateResetToken,hashToken ,generateAccessToken,generateRefreshToken} from "../../common/utils/jwt.utils.js"
+import { generateResetToken,hashToken, verifyRefreshToken,generateAccessToken,generateRefreshToken} from "../../common/utils/jwt.utils.js"
 import { sendVerificationEmail } from "../../common/config/email.js";
 
 
@@ -69,10 +69,28 @@ const verifyEmail = async (token) => {
 };
 
 
+const refresh=async(token)=>{
+if(!token){
+  throw ApiError.unauthorized("Refresh Token is required");
+}
 
+ let decoded;
+  try {
+    decoded = verifyRefreshToken(token);
+  } catch (err) {
+    throw ApiError.unauthorized("Invalid or expired refresh token. Please log in again.");
+}
+  const user = await User.findById(decoded.id).select("+refreshToken");
+  if (!user) {
+    throw ApiError.unauthorized("User account no longer exists");
+  }
+ if (user.refreshToken !== hashToken(token)) {
+    throw ApiError.unauthorized("Invalid refresh token. Please log in again.");
+  }
 
-
-
+   const accessToken = generateAccessToken({ id: user._id, role: user.role });
+  return { accessToken };
+}
 const login = async ({ email, password }) => {
 
   const user = await User.findOne({ email }).select("+password");
@@ -110,4 +128,8 @@ const getMe = async (userId) => {
   }
   return user;
 };
-export { register, verifyEmail, login, getMe };
+
+const logout = async (userId) => {
+  await User.findByIdAndUpdate(userId, { $unset: { refreshToken: 1 } });
+};
+export { register, verifyEmail, login, getMe ,refresh,logout};
