@@ -82,5 +82,25 @@ const logout = async (req, res, next) => {
   }
 };
 
+const forgotPassword = async (req, res, next) => {
+  try {
+    await authService.forgotPassword(req.body.email);
+    return ApiResponse.ok(res, "Password reset email sent successfully");
+  } catch (error) {
+    next(error);   ///global error middleware will be called skiiping other 
+    /// becaue Express immediately skips normal middleware and looks for:
+//(err, req, res, next)
+  }
+};
 
-export { register,verifyEmail ,login,getMe,refreshToken,logout};
+const resetPassword = async (req, res, next) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+    await authService.resetPassword(token, password);
+    return ApiResponse.ok(res, "Password reset successful. You can now log in with your new password.");
+  } catch (error) {
+    next(error);
+  }
+};
+export { register,verifyEmail ,login,getMe,refreshToken,logout,forgotPassword,resetPassword};

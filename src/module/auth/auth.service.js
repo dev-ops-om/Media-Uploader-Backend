@@ -1,7 +1,7 @@
 import User from "./auth.model.js"
 import ApiError from "../../common/utils/api-error.js"
 import { generateResetToken,hashToken, verifyRefreshToken,generateAccessToken,generateRefreshToken} from "../../common/utils/jwt.utils.js"
-import { sendVerificationEmail } from "../../common/config/email.js";
+import { sendVerificationEmail,sendResetPasswordEmail } from "../../common/config/email.js";
 
 
 
@@ -132,4 +132,44 @@ const getMe = async (userId) => {
 const logout = async (userId) => {
   await User.findByIdAndUpdate(userId, { $unset: { refreshToken: 1 } });
 };
-export { register, verifyEmail, login, getMe ,refresh,logout};
+
+const forgotPassword = async (email) => {
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw ApiError.notFound("No account found with that email address");
+  }
+  // Generate 32-byte raw token and SHA-256 hash
+  const { rawToken, hashedToken } = generateResetToken();
+  // Store hashed token and set 15-minute expiration
+  user.resetPasswordToken = hashedToken;
+  user.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 mins
+  await user.save({ validateBeforeSave: false });
+  // Send email containing the raw token
+  try {
+    await sendResetPasswordEmail(email, rawToken);
+  } catch (err) {
+    console.error("Failed to send reset password email:", err.message);
+  }
+};
+
+
+const resetPassword = async (token, newPassword) => {
+  // Hash the incoming raw token from the URL
+  const hashedToken = hashToken(token);
+  // Find user with matching token AND verify expiration timestamp
+  const user = await User.findOne({
+    resetPasswordToken: hashedToken,
+    resetPasswordExpires: { $gt: Date.now() }, // Time checking!
+  }).select("+resetPasswordToken +resetPasswordExpires");
+  if (!user) {
+    throw ApiError.badRequest("Invalid or expired password reset token");
+  }
+  // Set new password (our schema pre('save') hook will automatically hash it with bcrypt!)
+  user.password = newPassword;
+  // Clear reset token fields
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpires = undefined;
+  await user.save();
+};
+
+export { register, verifyEmail, login, getMe ,refresh,logout,forgotPassword,resetPassword};

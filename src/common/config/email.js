@@ -53,4 +53,29 @@ const sendVerificationEmail = async (email, token) => {
   );
 };
 
-export { sendEmail, sendVerificationEmail };
+// ... keep existing transporter, sendEmail, sendVerificationEmail ...
+
+const sendResetPasswordEmail = async (email, token) => {
+  // In a full-stack app, this points to your React frontend page: /reset-password/:token
+  const url = `${process.env.CLIENT_URL}/api/auth/reset-password/${token}`;
+
+  await sendEmail(
+    email,
+    "Password Reset Request",
+    `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <h2>Password Reset</h2>
+        <p>You requested a password reset. Click the button below to choose a new password:</p>
+        <p>
+          <a href="${url}" style="background-color: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+            Reset Password
+          </a>
+        </p>
+        <p><strong>Note:</strong> This link will expire in 15 minutes.</p>
+        <p>If you did not request this, please ignore this email.</p>
+      </div>
+    `
+  );
+};
+
+export { sendEmail, sendVerificationEmail, sendResetPasswordEmail };
