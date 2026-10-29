@@ -5,47 +5,31 @@ const mediaSchema = new mongoose.Schema(
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: [true, "Media must belong to a user"],
-      index: true,
+      required: true,
     },
-    fileName: {
+    title: {
       type: String,
-      required: [true, "File name is required"],
-      trim: true,
+      default: "",
     },
-    originalName: {
+    fileUrl: {
       type: String,
-      required: [true, "Original file name is required"],
+      required: true,
     },
     fileId: {
       type: String,
-      required: [true, "ImageKit fileId is required"],
-      unique: true,
-    },
-    url: {
-      type: String,
-      required: [true, "File URL is required"],
+      required: true,
     },
     thumbnailUrl: {
       type: String,
-      default: null,
-    },
-    size: {
-      type: Number,
-      required: [true, "File size is required"],
+      default: "",
     },
     mimeType: {
       type: String,
-      required: [true, "MIME type is required"],
+      default: "",
     },
-    fileType: {
-      type: String,
-      enum: ["image", "video", "audio", "document", "other"],
-      default: "other",
-    },
-    folder: {
-      type: String,
-      default: "/media-uploads",
+    size: {
+      type: Number,
+      default: 0,
     },
   },
   { timestamps: true }

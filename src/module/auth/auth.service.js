@@ -27,8 +27,6 @@ const register = async ({ name, email, password, role }) => {
     verificationToken: hashedToken,
   });
 
-  console.log(`[Verification Token for ${email}]: ${rawToken}`);
-
   try {
     await sendVerificationEmail(email, rawToken);
   } catch (err) {
@@ -66,31 +64,6 @@ const verifyEmail = async (token) => {
   return true;
 };
 
-const refresh = async (token) => {
-  if (!token) {
-    throw ApiError.unauthorized("Refresh Token is required");
-  }
-
-  let decoded;
-  try {
-    decoded = verifyRefreshToken(token);
-  } catch (err) {
-    throw ApiError.unauthorized("Invalid or expired refresh token. Please log in again.");
-  }
-
-  const user = await User.findById(decoded.id).select("+refreshToken");
-  if (!user) {
-    throw ApiError.unauthorized("User account no longer exists");
-  }
-
-  if (user.refreshToken !== hashToken(token)) {
-    throw ApiError.unauthorized("Invalid refresh token. Please log in again.");
-  }
-
-  const accessToken = generateAccessToken({ id: user._id, role: user.role });
-  return { accessToken };
-};
-
 const login = async ({ email, password }) => {
   const user = await User.findOne({ email }).select("+password");
   if (!user) {
@@ -122,33 +95,48 @@ const getMe = async (userId) => {
   return user;
 };
 
+const refresh = async (token) => {
+  if (!token) {
+    throw ApiError.unauthorized("Refresh Token is required");
+  }
+
+  let decoded;
+  try {
+    decoded = verifyRefreshToken(token);
+  } catch (err) {
+    throw ApiError.unauthorized("Invalid or expired refresh token. Please log in again.");
+  }
+
+  const user = await User.findById(decoded.id).select("+refreshToken");
+  if (!user || user.refreshToken !== hashToken(token)) {
+    throw ApiError.unauthorized("Invalid refresh token. Please log in again.");
+  }
+
+  const accessToken = generateAccessToken({ id: user._id, role: user.role });
+  return { accessToken };
+};
+
 const logout = async (userId) => {
   await User.findByIdAndUpdate(userId, { $unset: { refreshToken: 1 } });
 };
 
-/**
- * Upload Avatar using Memory Buffer:
- * file.buffer is provided by multer.memoryStorage().
- * We convert it using toFile() and upload directly to ImageKit with zero disk writes.
- */
+// Simple Avatar Upload using in-memory buffer
 const avatarUpload = async (userId, file) => {
   if (!file || !file.buffer) {
-    throw ApiError.badRequest("No file buffer provided for avatar upload");
+    throw ApiError.badRequest("Please select an avatar image to upload");
   }
 
-  // Convert in-memory buffer to ImageKit File format
-  const fileObj = await toFile(file.buffer, file.originalname, {
-    type: file.mimetype,
-  });
+  // Convert buffer to ImageKit File format
+  const fileObj = await toFile(file.buffer, file.originalname);
 
-  // Upload buffer to ImageKit under /user-avatars folder
+  // Upload to ImageKit folder /user-avatars
   const uploadResponse = await imageKit.files.upload({
     file: fileObj,
     fileName: `avatar-${userId}-${Date.now()}-${file.originalname}`,
     folder: "/user-avatars",
   });
 
-  // Update user's avatar URL in MongoDB
+  // Save new avatar URL to user profile in MongoDB
   const updatedUser = await User.findByIdAndUpdate(
     userId,
     { avatar: uploadResponse.url },
@@ -156,7 +144,7 @@ const avatarUpload = async (userId, file) => {
   ).select("-password");
 
   return {
-    url: uploadResponse.url,
+    avatarUrl: uploadResponse.url,
     fileId: uploadResponse.fileId,
     user: updatedUser,
   };
@@ -170,7 +158,7 @@ const forgotPassword = async (email) => {
 
   const { rawToken, hashedToken } = generateResetToken();
   user.resetPasswordToken = hashedToken;
-  user.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 mins
+  user.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
   await user.save({ validateBeforeSave: false });
 
   try {

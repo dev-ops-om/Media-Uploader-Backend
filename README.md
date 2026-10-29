@@ -7,51 +7,45 @@
 [![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose-brightgreen.svg)](https://www.mongodb.com/)
 [![JWT](https://img.shields.io/badge/JWT-Protected%20Auth-red.svg)](https://jwt.io/)
 
-A production-grade, secure, and cloud-native **Media Uploader Backend** built with **Express 5**, **ImageKit**, **Multer (Memory Storage / In-Memory Buffer)**, and **MongoDB**. 
+A simple, beginner-friendly, and cloud-native **Media Uploader Backend** built with **Express 5**, **ImageKit**, **Multer (In-Memory Buffer)**, and **MongoDB**.
 
-This system provides enterprise-grade **JWT Authentication** (access & refresh tokens, email verification, password reset) and seamless media asset management (single upload, batch multi-upload, pagination, and cloud deletion) without writing temporary files to the server's hard drive.
+This system allows authenticated users to upload files (images, PDFs, documents, audio, videos) directly to **ImageKit** from memory (RAM buffer) without saving temporary files to the server's hard disk!
 
 ---
 
-## 💡 Why In-Memory Buffer (`memoryStorage`) Over Disk Storage?
+## 💡 Why In-Memory Buffer (`memoryStorage`) Instead of Disk Storage?
 
-Many traditional upload implementations save incoming multipart files to a local server folder (e.g. `public/uploads/`) using `multer.diskStorage`, read the file stream, send it to the cloud, and then call `fs.unlinkSync()` to delete it.
+Traditional tutorials often write uploaded files to local disk folders (`public/uploads`) using `multer.diskStorage`, read them with `fs.createReadStream()`, and then delete them using `fs.unlinkSync()`.
 
-In modern containerized and serverless environments (Docker, AWS Lambda, Render, Vercel), **Disk Storage is an anti-pattern**:
-
-| Feature | 🗄️ Traditional Disk Storage | ⚡ In-Memory Buffer (`memoryStorage`) (This Project) |
-|---|---|---|
-| **Storage Mechanism** | Writes to local filesystem (`public/uploads`) | Stored temporarily in RAM (`req.file.buffer`) |
-| **Server Cleanup** | Requires manual `fs.unlink()` cleanup routines | Automatically garbage-collected by V8 runtime |
-| **Disk I/O Overhead** | Slow disk write + disk read cycles | Zero disk I/O; fast memory transmission |
-| **Cloud/Container Safe** | Fails on ephemeral / read-only filesystems | 100% compatible with Docker, Kubernetes, & Serverless |
-| **Security** | Leaves unencrypted files sitting on server disk | Files never touch the physical disk |
+**Why In-Memory Buffer is better:**
+1. **Zero Disk Clutter**: The file is stored in memory as a `Buffer` (`req.file.buffer`) and streamed directly to ImageKit.
+2. **No Temp Files or Manual Deletion**: No need for `fs.unlinkSync()` or managing local upload folders.
+3. **Container & Cloud Friendly**: Works natively on Render, Docker, AWS, and serverless platforms where local disk is read-only or ephemeral.
 
 ---
 
 ## 🏛️ System Architecture
 
 ```text
- Client (Browser / Postman / Mobile)
-        │
-        ▼ (Multipart / Form-Data)
- Express 5 API Router
-        │
- ┌──────┴──────────────────────────────────────────────────────┐
- │ Middleware Pipeline                                         │
- │ 1. CORS & Cookie Parser                                     │
- │ 2. JWT Authenticate Guard (Bearer Token verification)       │
- │ 3. Multer memoryStorage (Converts stream to RAM Buffer)     │
- └──────┬──────────────────────────────────────────────────────┘
-        │ (req.file.buffer)
-        ▼
+ Client (Postman / Browser)
+         │  (Multipart Form-Data)
+         ▼
+ Express 5 Server
+         │
+ ┌───────┴───────────────────────────────────────────────────────┐
+ │ Middlewares                                                   │
+ │ 1. authenticate (verifies JWT Bearer Token)                   │
+ │ 2. upload.single("file") (Multer stores file in RAM Buffer)   │
+ └───────┬───────────────────────────────────────────────────────┘
+         │ (req.file.buffer)
+         ▼
  Media Service Layer
-        │ ──► @imagekit/nodejs `toFile(buffer, filename)`
-        │ ──► Uploads directly to ImageKit CDN via HTTPS
-        │ ──► ImageKit returns { url, fileId, thumbnailUrl }
-        ▼
+         │ ──► toFile(file.buffer, file.originalname)
+         │ ──► Uploads directly to ImageKit CDN via HTTPS
+         │ ──► Returns { url, fileId, thumbnailUrl }
+         ▼
  MongoDB Database
-        └──► Saves metadata record (user ID, url, fileId, size, mimeType)
+         └──► Saves record: { user, title, fileUrl, fileId, thumbnailUrl }
 ```
 
 ---
@@ -63,70 +57,62 @@ media uploader/
 ├── src/
 │   ├── common/
 │   │   ├── config/
-│   │   │   ├── db.js              # MongoDB Atlas / local connection
-│   │   │   ├── email.js           # Mailtrap SMTP transporter
-│   │   │   └── imagekit.js        # ImageKit SDK client configuration
-│   │   ├── dto/
-│   │   │   └── base.dto.js        # Joi schema validation base
+│   │   │   ├── db.js                # MongoDB connection
+│   │   │   ├── email.js             # Mailtrap SMTP transporter
+│   │   │   └── imagekit.js          # ImageKit SDK configuration
 │   │   ├── middleware/
-│   │   │   ├── multer.middleware.js # In-memory buffer Multer configuration
-│   │   │   └── validate.middleware.js # Request payload validation
+│   │   │   ├── multer.middleware.js # Multer in-memory storage config
+│   │   │   └── validate.middleware.js
 │   │   └── utils/
-│   │       ├── api-error.js       # Centralized Error class
-│   │       ├── api-response.js    # Standardized JSON response envelope
-│   │       └── jwt.utils.js       # Access/Refresh token signing & hashing
+│   │       ├── api-error.js         # Standard error response helper
+│   │       ├── api-response.js      # Standard success response helper
+│   │       └── jwt.utils.js         # JWT signing & verification
 │   ├── module/
-│   │   ├── auth/
-│   │   │   ├── dto/               # Login, Register, Password DTOs
-│   │   │   ├── auth.controller.js # Auth request handlers
-│   │   │   ├── auth.middleware.js # Bearer token verification
-│   │   │   ├── auth.model.js      # User schema with avatar reference
-│   │   │   ├── auth.routes.js     # Auth route endpoints
-│   │   │   └── auth.service.js    # Auth business logic & buffer avatar upload
-│   │   └── media/
-│   │       ├── media.controller.js# Media upload & CRUD handlers
-│   │       ├── media.model.js     # Media schema (fileId, url, metadata)
-│   │       ├── media.routes.js    # Media upload routes
-│   │       └── media.service.js   # ImageKit buffer upload & cloud deletion
-│   └── app.js                     # Express app instance & global error handlers
-├── .gitignore
-├── env.example                    # Template environment variables
+│   │   ├── auth/                    # Complete Authentication module
+│   │   │   ├── auth.controller.js   # Auth & avatar upload controllers
+│   │   │   ├── auth.middleware.js   # JWT route protection middleware
+│   │   │   ├── auth.model.js        # User model
+│   │   │   ├── auth.routes.js       # /api/auth routes
+│   │   │   └── auth.service.js      # Auth business logic & avatar buffer upload
+│   │   └── media/                   # Media Upload module
+│   │       ├── media.controller.js  # Media request handlers
+│   │       ├── media.model.js       # Media schema
+│   │       ├── media.routes.js      # /api/media routes
+│   │       └── media.service.js     # ImageKit buffer upload & cloud delete
+│   └── app.js                       # Express app configuration
+├── env.example                      # Template environment variables
 ├── package.json
-└── server.js                      # Application entrypoint
+└── server.js                        # App entrypoint
 ```
 
 ---
 
 ## 📡 API Reference
 
-### 🔐 Authentication Endpoints (`/api/auth`)
+### 🔐 1. Authentication Routes (`/api/auth`)
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| `POST` | `/api/auth/register` | None | Register account (`name`, `email`, `password`) |
-| `GET` | `/api/auth/verify-email/:token` | None | Verify email address from Mailtrap link |
-| `POST` | `/api/auth/login` | None | Authenticate credentials, returns JWT `accessToken` & sets `refreshToken` |
-| `POST` | `/api/auth/refresh-token` | None | Refreshes expired access token |
-| `GET` | `/api/auth/me` | Bearer | Get authenticated user profile |
-| `POST` | `/api/auth/logout` | Bearer | Invalidate session & clear cookies |
-| `POST` | `/api/auth/avatar` | Bearer | Upload user profile picture directly to ImageKit via **RAM Buffer** |
-| `POST` | `/api/auth/forgot-password` | None | Request 15-minute expiring password reset token |
-| `PUT` | `/api/auth/reset-password/:token`| None | Set new password with valid reset token |
+| `POST` | `/api/auth/register` | None | Register a new user |
+| `POST` | `/api/auth/login` | None | Login & receive JWT access token |
+| `GET` | `/api/auth/verify-email/:token` | None | Verify account email address |
+| `GET` | `/api/auth/me` | Bearer | Get current logged-in user profile |
+| `POST` | `/api/auth/avatar` | Bearer | Upload user avatar using **in-memory buffer** |
+| `POST` | `/api/auth/logout` | Bearer | Logout and clear session cookies |
 
 ---
 
-### 📁 Media Uploader Endpoints (`/api/media`)
+### 📁 2. Media Upload Routes (`/api/media`) — All Protected with `Bearer <token>`
 
-All media endpoints require an `Authorization: Bearer <token>` header.
-
-#### 1. Upload Single File
+#### 1. Upload Media File
 - **Method**: `POST`
 - **Endpoint**: `/api/media/upload`
+- **Headers**: `Authorization: Bearer <your_token>`
 - **Body Type**: `multipart/form-data`
-- **Fields**:
-  - `file`: The media file (Image, PDF, Word Document, Audio, or Video)
-  - `folder` *(optional)*: Target folder on ImageKit (e.g. `/portfolio`)
-- **Response**:
+- **Form Fields**:
+  - `file`: The file to upload (Image, PDF, Word Document, Audio, or Video)
+  - `title` *(optional)*: Custom name/title for the file
+- **Sample Success Response**:
 ```json
 {
   "success": true,
@@ -134,53 +120,32 @@ All media endpoints require an `Authorization: Bearer <token>` header.
   "data": {
     "_id": "67223b...",
     "user": "67223a...",
-    "fileName": "sample_a1b2c.png",
-    "originalName": "sample.png",
+    "title": "my-photo.png",
+    "fileUrl": "https://ik.imagekit.io/your_endpoint/media-uploads/my-photo.png",
     "fileId": "67223b9f...",
-    "url": "https://ik.imagekit.io/your_endpoint/media-uploads/sample_a1b2c.png",
-    "thumbnailUrl": "https://ik.imagekit.io/your_endpoint/tr:n-media_library_thumbnail/media-uploads/sample_a1b2c.png",
-    "size": 104230,
+    "thumbnailUrl": "https://ik.imagekit.io/your_endpoint/tr:n-media_library_thumbnail/media-uploads/my-photo.png",
     "mimeType": "image/png",
-    "fileType": "image",
-    "folder": "/media-uploads",
+    "size": 104230,
     "createdAt": "2026-10-29T14:45:00.000Z"
   }
 }
 ```
 
-#### 2. Upload Multiple Files (Batch Upload)
-- **Method**: `POST`
-- **Endpoint**: `/api/media/upload-multiple`
-- **Body Type**: `multipart/form-data`
-- **Fields**:
-  - `files`: Multiple files (up to 10 files simultaneously)
-  - `folder` *(optional)*: Target folder name
-
-#### 3. Get All Uploaded Media (Paginated)
+#### 2. Get All Files of Current User
 - **Method**: `GET`
-- **Endpoint**: `/api/media?page=1&limit=10&fileType=image`
-- **Query Parameters**:
-  - `page`: Page number (default: 1)
-  - `limit`: Items per page (default: 10)
-  - `fileType`: Filter by category (`image`, `document`, `video`, `audio`)
+- **Endpoint**: `/api/media`
+- **Headers**: `Authorization: Bearer <your_token>`
 
-#### 4. Get Single Media File
+#### 3. Get Single File Details
 - **Method**: `GET`
 - **Endpoint**: `/api/media/:id`
+- **Headers**: `Authorization: Bearer <your_token>`
 
-#### 5. Delete Media File
+#### 4. Delete File
 - **Method**: `DELETE`
 - **Endpoint**: `/api/media/:id`
-- **Action**: Atomically deletes the file from **ImageKit cloud storage** and removes the metadata document from **MongoDB**.
-
----
-
-## 🛡️ Supported File Types & Limits
-
-- **Images**: JPEG, PNG, WebP, GIF, SVG
-- **Documents**: PDF, Microsoft Word (.doc, .docx), Plain Text (.txt)
-- **Audio & Video**: MP4, WebM, MP3, WAV
-- **File Size Limit**: Up to **10MB** per file (configured in `multer.middleware.js`)
+- **Headers**: `Authorization: Bearer <your_token>`
+- **Action**: Deletes file from **ImageKit cloud storage** and removes the record from **MongoDB**.
 
 ---
 
@@ -191,7 +156,7 @@ Create a `.env` file from `env.example`:
 cp env.example .env
 ```
 
-Fill in your credentials:
+Add your credentials:
 ```env
 PORT=8080
 NODE_ENV=development
@@ -223,37 +188,26 @@ CLIENT_URL=http://localhost:8080
 
 ---
 
-## 🚀 Getting Started
+## 🚀 How to Run Locally
 
-### 1. Install Dependencies
 ```bash
+# 1. Install dependencies
 npm install
-```
 
-### 2. Start in Development Mode
-```bash
+# 2. Run development server with watch mode
 npm run dev
 ```
 
-### 3. Start in Production Mode
-```bash
-npm start
-```
-
-The server starts on `http://localhost:8080`. Check health at `http://localhost:8080/health`.
+Visit health check at: `http://localhost:8080/health`.
 
 ---
 
-## 🧪 Testing with Postman / ThunderClient
+## 🧪 Testing with Postman
 
-1. **Register**: `POST http://localhost:8080/api/auth/register` with JSON:
-   ```json
-   { "name": "John Doe", "email": "john@example.com", "password": "password123" }
-   ```
-2. **Login**: `POST http://localhost:8080/api/auth/login` to obtain your `accessToken`.
-3. **Upload Media**:
+1. **Login**: Send `POST http://localhost:8080/api/auth/login` to get your `accessToken`.
+2. **Upload Media**:
    - `POST http://localhost:8080/api/media/upload`
-   - Set Header: `Authorization: Bearer <your_access_token>`
-   - Set Body to **form-data**
-   - Key: `file` (type: **File**), select any image/PDF from your computer
-   - Send request! ImageKit URL and file details will be returned instantly.
+   - **Headers**: `Authorization: Bearer <accessToken>`
+   - **Body**: Select `form-data`
+   - Key: `file` (select **File** dropdown), choose any file on your computer.
+   - Click **Send**.
