@@ -6,6 +6,7 @@ import RegisterDto from "../auth/dto/register.dto.js";
 import ForgotPasswordDto from "./dto/forget-password.dto.js";
 import ResetPasswordDto from "./dto/reset-password.dto.js";
 import { authenticate } from "./auth.middleware.js";
+import { upload } from "../../common/middleware/multer.middleware.js";
 const router=Router();
 
 //public token
@@ -22,6 +23,6 @@ router.put("/reset-password/:token", validate(ResetPasswordDto), controller.rese
 //protected routes
 router.get("/me", authenticate, controller.getMe);
 router.post("/logout",authenticate,controller.logout);
-
+router.post("/avatar",authenticate,upload.single("avatar"),controller.uploadAvatar);
 
 export default router;

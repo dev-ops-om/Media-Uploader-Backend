@@ -1,7 +1,6 @@
 import * as authService from "./auth.service.js";
-
 import ApiResponse from "../../common/utils/api-response.js";
-
+import ApiError from "../../common/utils/api-error.js";
 
 const register = async (req, res, next) => {
   try {
@@ -12,13 +11,12 @@ const register = async (req, res, next) => {
       user
     );
   } catch (error) {
-    next(error); // Passes any ApiError to our global error handling middleware
+    next(error);
   }
 };
 
 const verifyEmail = async (req, res, next) => {
   try {
-    // Read token from URL parameter: /verify-email/:token
     const { token } = req.params;
     await authService.verifyEmail(token);
     return ApiResponse.ok(res, "Email verified successfully! You can now log in.");
@@ -30,25 +28,20 @@ const verifyEmail = async (req, res, next) => {
 const login = async (req, res, next) => {
   try {
     const { user, accessToken, refreshToken } = await authService.login(req.body);
-    // Set Refresh Token in a secure HTTP-Only Cookie
     res.cookie("refreshToken", refreshToken, {
-      httpOnly: true, // Prevents browser JavaScript from reading the cookie (anti-XSS)
-      secure: process.env.NODE_ENV === "production", // HTTPS only in production
-      sameSite: "strict", // Protects against Cross-Site Request Forgery (CSRF)
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
-    // Send access token and user info in response body
     return ApiResponse.ok(res, "Login successful", { user, accessToken });
   } catch (error) {
     next(error);
   }
 };
 
-
-
 const getMe = async (req, res, next) => {
   try {
-    // req.user was attached by our authenticate middleware!
     const user = await authService.getMe(req.user.id);
     return ApiResponse.ok(res, "User profile retrieved successfully", user);
   } catch (error) {
@@ -58,7 +51,6 @@ const getMe = async (req, res, next) => {
 
 const refreshToken = async (req, res, next) => {
   try {
-    // Read the httpOnly cookie parsed by cookie-parser
     const token = req.cookies?.refreshToken;
     const { accessToken } = await authService.refresh(token);
     return ApiResponse.ok(res, "Access token refreshed successfully", { accessToken });
@@ -66,11 +58,10 @@ const refreshToken = async (req, res, next) => {
     next(error);
   }
 };
+
 const logout = async (req, res, next) => {
   try {
-    // req.user was attached by our authenticate middleware
     await authService.logout(req.user.id);
-    // Clear the cookie from the user's browser
     res.clearCookie("refreshToken", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -82,14 +73,25 @@ const logout = async (req, res, next) => {
   }
 };
 
+const uploadAvatar = async (req, res, next) => {
+  try {
+    const file = req.file;
+    if (!file) {
+      throw ApiError.badRequest("No file uploaded. Please send a file with field name 'avatar'");
+    }
+    const result = await authService.avatarUpload(req.user.id, file);
+    return ApiResponse.ok(res, "Avatar uploaded successfully", result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 const forgotPassword = async (req, res, next) => {
   try {
     await authService.forgotPassword(req.body.email);
     return ApiResponse.ok(res, "Password reset email sent successfully");
   } catch (error) {
-    next(error);   ///global error middleware will be called skiiping other 
-    /// becaue Express immediately skips normal middleware and looks for:
-//(err, req, res, next)
+    next(error);
   }
 };
 
@@ -103,4 +105,15 @@ const resetPassword = async (req, res, next) => {
     next(error);
   }
 };
-export { register,verifyEmail ,login,getMe,refreshToken,logout,forgotPassword,resetPassword};
+
+export {
+  register,
+  verifyEmail,
+  login,
+  getMe,
+  refreshToken,
+  logout,
+  forgotPassword,
+  resetPassword,
+  uploadAvatar,
+};
